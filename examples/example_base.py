@@ -59,21 +59,21 @@ print(f'vltot={vltot.shape}')
 print(f'rho={np.sum(rho)}')
 
 # ENVIRON INIT
-print('io')
+#print('io')
 environ_setup.init_io('PW', True, 0, comm, 6)
-print("base 1")
+#print("base 1")
 environ_setup.init_base_first(nelec, nat, ntyp, atom_label[:, :ntyp], False)
-print("base 2")
+#print("base 2")
 environ_setup.init_base_second(alat, at, comm, me, root, gcutm, e2_in)
 
 # update functions (TODO: rename the interface functions)
-print("ions")
+#print("ions")
 environ_control.init_ions(nat, ntyp, ityp, zv[:ntyp], tau, alat)
-print("cell")
+#print("cell")
 environ_control.init_cell(at, alat)
-print("potential")
+#print("potential")
 environ_control.init_potential(nnr, vltot)
-print("electrons")
+#print("electrons")
 environ_control.init_electrons(nnr, rho, nelec)
 
 # calculator interface
@@ -111,7 +111,7 @@ for i in range(nstep):
     environ_output.print_energies()
 
     # ENVIRON -> QEPY
-    qepy.qepy_mod.qepy_set_extpot(embed, dvtot)
+    qepy.qepy_mod.qepy_set_extpot(embed, dvtot, False)
 
     print(f"corrected energy = {embed.etotal}")
 
