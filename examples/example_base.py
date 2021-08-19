@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import qepy
 import pyec.setup_interface as environ_setup
@@ -7,9 +9,15 @@ import pyec.output_interface as environ_output
 
 from mpi4py import MPI
 
+VERBOSE=True
+def printt(s):
+    if VERBOSE:
+        print(s)
+        sys.stdout.flush()
+
 comm = MPI.COMM_WORLD
 comm = comm.py2f()
-print(comm)
+printt(comm)
 
 fname = 'dielectric.in'
 
@@ -37,49 +45,51 @@ zv = qepy.ions_base.get_array_zv()
 tau = qepy.ions_base.get_array_tau()
 
 vltot = qepy.scf.get_array_vltot()
-nnr = vltot.size
+nnr = MPI.COMM_WORLD.allreduce(vltot.size, op=MPI.SUM)
+
+printt(f'nnr={nnr}')
 
 rho = np.zeros((nnr, 1), order='F')
 rhohist = np.zeros((nnr, 1), order='F')
 dvtot = np.zeros((nnr), order='F')
-qepy.qepy_mod.qepy_get_rho(rho, False)
+printt("qepy get rho")
+qepy.qepy_mod.qepy_get_rho(rho, True)
 
-print(f'nat={nat}')
-print(f'nelec={nelec}')
-print(f'ntyp={ntyp}')
-print(f'atom_label={atom_label[:, :ntyp]}')
-print(f'alat={alat}')
-print(f'at={at}')
-print(f'gcutm={gcutm}')
-print(f'ityp={ityp}')
-print(f'zv={zv}')
-print(f'tau={tau}')
-print(f'nnr={nnr}')
-print(f'vltot={vltot.shape}')
-print(f'rho={np.sum(rho)}')
+printt(f'nat={nat}')
+printt(f'nelec={nelec}')
+printt(f'ntyp={ntyp}')
+printt(f'atom_label={atom_label[:, :ntyp]}')
+printt(f'alat={alat}')
+printt(f'at={at}')
+printt(f'gcutm={gcutm}')
+printt(f'ityp={ityp}')
+printt(f'zv={zv}')
+printt(f'tau={tau}')
+printt(f'vltot={vltot.shape}')
+printt(f'rho={np.sum(rho)}')
 
 # ENVIRON INIT
-#print('io')
+printt('io')
 environ_setup.init_io('PW', True, 0, comm, 6)
-#print("base 1")
+printt("base 1")
 environ_setup.init_base_first(nelec, nat, ntyp, atom_label[:, :ntyp], False)
-#print("base 2")
+printt("base 2")
 environ_setup.init_base_second(alat, at, comm, me, root, gcutm, e2_in)
 
 # update functions (TODO: rename the interface functions)
-#print("ions")
+printt("ions")
 environ_control.init_ions(nat, ntyp, ityp, zv[:ntyp], tau, alat)
-#print("cell")
+printt("cell")
 environ_control.init_cell(at, alat)
-#print("potential")
-environ_control.init_potential(nnr, vltot)
-#print("electrons")
-environ_control.init_electrons(nnr, rho, nelec)
+printt("potential")
+environ_control.init_potential(vltot)
+printt("electrons")
+environ_control.init_electrons(nnr, rho, nelec, True)
 
 # calculator interface
 environ_calc.calc_potential(False, nnr, dvtot)
 
-nstep = 3
+nstep = 20
 for i in range(nstep):
     # QE SCF
     if i == 0 :
@@ -95,11 +105,14 @@ for i in range(nstep):
     # QEPY -> ENVIRON
     qepy.qepy_calc_energies(embed)
     rho[:] = 0.0
-    qepy.qepy_mod.qepy_get_rho(rho, False)
+    printt("rho gather")
+    qepy.qepy_mod.qepy_get_rho(rho, True)
 
     # ENVIRON SCF
-    environ_control.init_electrons(nnr, rho, nelec)
-    environ_calc.calc_potential(True, nnr, dvtot)
+    printt("rho scatter")
+    environ_control.init_electrons(nnr, rho, nelec, True)
+    printt("v gather")
+    environ_calc.calc_potential(True, nnr, dvtot, True)
 
     # UPDATE ENERGY
     environ_energy = np.zeros((1), dtype=float)
@@ -111,9 +124,10 @@ for i in range(nstep):
     environ_output.print_energies()
 
     # ENVIRON -> QEPY
-    qepy.qepy_mod.qepy_set_extpot(embed, dvtot, False)
+    printt("v scatter")
+    qepy.qepy_mod.qepy_set_extpot(embed, dvtot, True)
 
-    print(f"corrected energy = {embed.etotal}")
+    printt(f"corrected energy = {embed.etotal}")
 
 
 qepy.qepy_calc_energies(embed)
@@ -124,9 +138,11 @@ forces = qepy.force_mod.get_array_force().T
 
 force_environ = np.zeros((3, nat), dtype=float, order='F')
 environ_calc.calc_force(nat, force_environ)
-print(force_environ.T)
+printt(force_environ.T)
 
 # TODO clean up environ stuff
 
 qepy.punch('all')
 qepy.qepy_stop_run(0, what = 'no')
+
+

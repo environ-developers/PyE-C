@@ -31,6 +31,8 @@ MODULE calc_interface
     !
     USE environ_param, ONLY: DP
     !
+    USE env_base_scatter, ONLY: env_gather_grid
+    !
     USE class_environ, ONLY: env
     !
     !------------------------------------------------------------------------------------
@@ -55,7 +57,7 @@ CONTAINS
     !>
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE calc_potential(update, nnr, dvtot, local_verbose)
+    SUBROUTINE calc_potential(update, nnr, dvtot, local_verbose, lgather)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
@@ -63,14 +65,31 @@ CONTAINS
         LOGICAL, INTENT(IN) :: update
         INTEGER, INTENT(IN) :: nnr
         INTEGER, INTENT(IN), OPTIONAL :: local_verbose
+        LOGICAL, INTENT(IN), OPTIONAL :: lgather
         !
         REAL(DP), INTENT(OUT) :: dvtot(nnr)
+        !
+        REAL(DP) :: aux(nnr)
         !
         !--------------------------------------------------------------------------------
         !
         CALL env%potential(update, local_verbose)
         !
-        dvtot = env%dvtot%of_r
+        aux = env%dvtot%of_r
+        !
+#if defined(__MPI)
+        IF (PRESENT(lgather)) THEN
+            IF (lgather) THEN
+                CALL env_gather_grid(env%system_cell%dfft, aux, dvtot)
+            ELSE
+                dvtot = aux
+            END IF
+        ELSE
+            dvtot = aux
+        END IF
+#else
+        dvtot = aux
+#endif
         !
         RETURN
         !

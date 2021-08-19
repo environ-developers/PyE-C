@@ -29,6 +29,8 @@
 MODULE control_interface
     !------------------------------------------------------------------------------------
     !
+    USE env_base_scatter, ONLY: env_scatter_grid
+    !
     USE environ_param, ONLY: DP
     !
     USE class_environ, ONLY: env
@@ -56,17 +58,33 @@ CONTAINS
     !! Called at every ionic step
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE init_potential(nnr, vltot)
+    SUBROUTINE init_potential(vltot, lscatter)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
         !
-        INTEGER, INTENT(IN) :: nnr
-        REAL(DP), INTENT(IN) :: vltot(nnr)
+        REAL(DP), INTENT(IN) :: vltot(env%system_cell%nnr)
+        LOGICAL, INTENT(IN), OPTIONAL :: lscatter
+        !
+        REAL(DP) :: aux(env%system_cell%nnr)
         !
         !--------------------------------------------------------------------------------
         !
-        CALL env%init_potential(nnr, vltot)
+#if defined(__MPI)
+        IF (PRESENT(lscatter)) THEN
+            IF (lscatter) THEN
+                CALL env_scatter_grid(env%system_cell%dfft, vltot, aux)
+            ELSE
+                aux = vltot
+            END IF
+        ELSE
+            aux = vltot
+        END IF
+#else
+        aux = vltot
+#endif
+        !
+        CALL env%init_potential(env%system_cell%nnr, aux)
         !
         RETURN
         !
@@ -130,7 +148,7 @@ CONTAINS
     !>
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE init_electrons(nnr, rho, nelec)
+    SUBROUTINE init_electrons(nnr, rho, nelec, lscatter)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
@@ -138,10 +156,28 @@ CONTAINS
         INTEGER, INTENT(IN) :: nnr
         REAL(DP), INTENT(IN) :: rho(nnr)
         REAL(DP), INTENT(IN), OPTIONAL :: nelec
+        LOGICAL, INTENT(IN), OPTIONAL :: lscatter
+        !
+        REAL(DP) :: aux(env%environment_cell%dfft%nnr)
         !
         !--------------------------------------------------------------------------------
         !
-        CALL env%init_electrons(nnr, rho, nelec)
+        !
+#if defined(__MPI)
+        IF (PRESENT(lscatter)) THEN
+            IF (lscatter) THEN
+                CALL env_scatter_grid(env%environment_cell%dfft, rho, aux)
+            ELSE
+                aux = rho
+            END IF
+        ELSE
+            aux = rho
+        END IF
+#else
+        aux = rho
+#endif
+        !
+        CALL env%init_electrons(env%environment_cell%dfft%nnr, aux, nelec)
         !
         RETURN
         !
