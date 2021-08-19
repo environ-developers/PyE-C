@@ -44,9 +44,6 @@ ityp = qepy.ions_base.get_array_ityp()
 zv = qepy.ions_base.get_array_zv()
 tau = qepy.ions_base.get_array_tau()
 
-vltot = qepy.scf.get_array_vltot()
-nnr = MPI.COMM_WORLD.allreduce(vltot.size, op=MPI.SUM)
-
 printt(f'nnr={nnr}')
 
 rho = np.zeros((nnr, 1), order='F')
@@ -65,7 +62,6 @@ printt(f'gcutm={gcutm}')
 printt(f'ityp={ityp}')
 printt(f'zv={zv}')
 printt(f'tau={tau}')
-printt(f'vltot={vltot.shape}')
 printt(f'rho={np.sum(rho)}')
 
 # ENVIRON INIT
@@ -81,8 +77,6 @@ printt("ions")
 environ_control.update_ions(nat, ntyp, ityp, zv[:ntyp], tau, alat)
 printt("cell")
 environ_control.update_cell(at, alat)
-printt("potential")
-environ_control.update_potential(vltot)
 printt("electrons")
 environ_control.update_electrons(rho, True)
 

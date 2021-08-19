@@ -43,7 +43,7 @@ MODULE control_interface
     !
     PRIVATE
     !
-    PUBLIC :: update_potential, update_cell, update_ions, update_electrons, update_response
+    PUBLIC :: update_cell, update_ions, update_electrons, update_response
     !
     !------------------------------------------------------------------------------------
     !
@@ -55,41 +55,6 @@ CONTAINS
     !                               UPDATE METHODS
     !
     !------------------------------------------------------------------------------------
-    !------------------------------------------------------------------------------------
-    !>
-    !! Called at every ionic step
-    !!
-    !------------------------------------------------------------------------------------
-    SUBROUTINE update_potential(vltot, lscatter)
-        !--------------------------------------------------------------------------------
-        !
-        IMPLICIT NONE
-        !
-        REAL(DP), INTENT(IN) :: vltot(env%system_cell%nnr)
-        LOGICAL, INTENT(IN), OPTIONAL :: lscatter
-        !
-        REAL(DP) :: aux(env%system_cell%nnr)
-        !
-        !--------------------------------------------------------------------------------
-        !
-#if defined(__MPI)
-        IF (PRESENT(lscatter)) THEN
-            IF (lscatter) THEN
-                CALL env_scatter_grid(env%system_cell%dfft, vltot, aux)
-            ELSE
-                aux = vltot
-            END IF
-        ELSE
-            aux = vltot
-        END IF
-#else
-        aux = vltot
-#endif
-        !
-        CALL env%init_potential(env%system_cell%nnr, aux)
-        !
-        !--------------------------------------------------------------------------------
-    END SUBROUTINE update_potential
     !------------------------------------------------------------------------------------
     !>
     !!
