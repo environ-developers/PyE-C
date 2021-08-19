@@ -35,13 +35,15 @@ MODULE control_interface
     !
     USE class_environ, ONLY: env
     !
+    USE env_types_fft, ONLY: env_fft_type_descriptor
+    !
     !------------------------------------------------------------------------------------
     !
     IMPLICIT NONE
     !
     PRIVATE
     !
-    PUBLIC :: init_potential, init_cell, init_ions, init_electrons, init_response
+    PUBLIC :: update_potential, update_cell, update_ions, update_electrons, update_response
     !
     !------------------------------------------------------------------------------------
     !
@@ -58,7 +60,7 @@ CONTAINS
     !! Called at every ionic step
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE init_potential(vltot, lscatter)
+    SUBROUTINE update_potential(vltot, lscatter)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
@@ -89,12 +91,12 @@ CONTAINS
         RETURN
         !
         !--------------------------------------------------------------------------------
-    END SUBROUTINE init_potential
+    END SUBROUTINE update_potential
     !------------------------------------------------------------------------------------
     !>
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE init_cell(at, alat)
+    SUBROUTINE update_cell(at, alat)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
@@ -115,12 +117,12 @@ CONTAINS
         RETURN
         !
         !--------------------------------------------------------------------------------
-    END SUBROUTINE init_cell
+    END SUBROUTINE update_cell
     !------------------------------------------------------------------------------------
     !>
-    !!
+    !! // TODO consider whether ions are ever changed or just need updated positions
     !------------------------------------------------------------------------------------
-    SUBROUTINE init_ions(nat, ntyp, ityp, zv, tau, alat)
+    SUBROUTINE update_ions(nat, ntyp, ityp, zv, tau, alat)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
@@ -143,22 +145,21 @@ CONTAINS
         RETURN
         !
         !--------------------------------------------------------------------------------
-    END SUBROUTINE init_ions
+    END SUBROUTINE update_ions
     !------------------------------------------------------------------------------------
     !>
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE init_electrons(nnr, rho, nelec, lscatter)
+    SUBROUTINE update_electrons(rho, lscatter)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
         !
-        INTEGER, INTENT(IN) :: nnr
-        REAL(DP), INTENT(IN) :: rho(nnr)
-        REAL(DP), INTENT(IN), OPTIONAL :: nelec
+        REAL(DP), INTENT(IN) :: rho(env%system_cell%dfft%nnt)
         LOGICAL, INTENT(IN), OPTIONAL :: lscatter
         !
-        REAL(DP) :: aux(env%environment_cell%dfft%nnr)
+        REAL(DP) :: aux(env%system_cell%dfft%nnr)
+        REAL(DP) :: nelec
         !
         !--------------------------------------------------------------------------------
         !
@@ -166,7 +167,7 @@ CONTAINS
 #if defined(__MPI)
         IF (PRESENT(lscatter)) THEN
             IF (lscatter) THEN
-                CALL env_scatter_grid(env%environment_cell%dfft, rho, aux)
+                CALL env_scatter_grid(env%system_cell%dfft, rho, aux)
             ELSE
                 aux = rho
             END IF
@@ -177,32 +178,34 @@ CONTAINS
         aux = rho
 #endif
         !
-        CALL env%init_electrons(env%environment_cell%dfft%nnr, aux, nelec)
+        nelec = REAL(env%system_electrons%number, DP)
+        !
+        CALL env%init_electrons(env%system_cell%dfft%nnr, aux, nelec)
         !
         RETURN
         !
         !--------------------------------------------------------------------------------
-    END SUBROUTINE init_electrons
+    END SUBROUTINE update_electrons
     !------------------------------------------------------------------------------------
     !>
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE init_response(nnr, drho)
+    SUBROUTINE update_response(drho)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
         !
-        INTEGER, INTENT(IN) :: nnr
-        REAL(DP), INTENT(IN) :: drho(nnr)
+        ! // TODO may need scatter
+        REAL(DP), INTENT(IN) :: drho(env%system_cell%dfft%nnr)
         !
         !--------------------------------------------------------------------------------
         !
-        CALL env%init_response(nnr, drho)
+        CALL env%init_response(env%system_cell%dfft%nnr, drho)
         !
         RETURN
         !
         !--------------------------------------------------------------------------------
-    END SUBROUTINE init_response
+    END SUBROUTINE update_response
     !------------------------------------------------------------------------------------    
     !>
     !!
