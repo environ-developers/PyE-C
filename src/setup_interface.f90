@@ -277,6 +277,8 @@ CONTAINS
         !
         IF (env%lsemiconductor) CALL env%semiconductor%destroy(lflag)
         !
+        IF (env%laddcharges) CALL env%additional_charges%destroy()
+        !
         CALL env%system_electrons%destroy(lflag)
         !
         CALL env%system_ions%destroy(lflag)

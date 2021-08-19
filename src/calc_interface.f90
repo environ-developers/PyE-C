@@ -58,7 +58,7 @@ CONTAINS
     !>
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE calc_potential(update, dvtot, local_verbose, lgather)
+    SUBROUTINE calc_potential(update, potential, local_verbose, lgather)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
@@ -67,7 +67,7 @@ CONTAINS
         INTEGER, INTENT(IN), OPTIONAL :: local_verbose
         LOGICAL, INTENT(IN), OPTIONAL :: lgather
         !
-        REAL(DP), INTENT(OUT) :: dvtot(env%system_cell%dfft%nnt)
+        REAL(DP), INTENT(OUT) :: potential(env%system_cell%dfft%nnt)
         !
         REAL(DP) :: aux(env%system_cell%dfft%nnr)
         !
@@ -80,15 +80,15 @@ CONTAINS
 #if defined(__MPI)
         IF (PRESENT(lgather)) THEN
             IF (lgather) THEN
-                CALL env_gather_grid(env%system_cell%dfft, aux, dvtot)
+                CALL env_gather_grid(env%system_cell%dfft, aux, potential)
             ELSE
-                dvtot = aux
+                potential = aux
             END IF
         ELSE
-            dvtot = aux
+            potential = aux
         END IF
 #else
-        dvtot = aux
+        potential = aux
 #endif
         !
         !--------------------------------------------------------------------------------

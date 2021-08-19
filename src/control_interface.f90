@@ -43,7 +43,8 @@ MODULE control_interface
     !
     PRIVATE
     !
-    PUBLIC :: update_cell, update_ions, update_electrons, update_response
+    PUBLIC :: update_cell, update_ions, update_electrons, update_response, &
+              add_mbx_charges
     !
     !------------------------------------------------------------------------------------
     !
@@ -165,29 +166,38 @@ CONTAINS
     !>
     !!
     !------------------------------------------------------------------------------------
-    ! SUBROUTINE add_potential(nnr, added_potential, label)
-    !     !--------------------------------------------------------------------------------
-    !     !
-    !     IMPLICIT NONE
-    !     !
-    !     INTEGER, INTENT(IN) :: nnr
-    !     REAL(DP), INTENT(IN) :: added_potential(nnr)
-    !     CHARACTER(LEN=80), INTENT(IN), OPTIONAL :: label
-    !     !
-    !     CHARACTER(LEN=80) :: local_label = 'additional_potential'
-    !     !
-    !     CHARACTER(LEN=80) :: sub_name = 'add_potential'
-    !     !
-    !     !--------------------------------------------------------------------------------
-    !     !
-    !     IF (PRESENT(label)) local_label = label
-    !     !
-    !     CALL env%additional_potential%init(env%environment_cell, local_label)
-    !     !
-    !     env%need_additional_potential = .TRUE.
-    !     !
-    !     !--------------------------------------------------------------------------------
-    ! END SUBROUTINE add_potential
+    SUBROUTINE add_mbx_charges(rho, lscatter)
+        !--------------------------------------------------------------------------------
+        !
+        IMPLICIT NONE
+        !
+        REAL(DP), INTENT(IN) :: rho(env%system_cell%dfft%nnt)
+        LOGICAL, INTENT(IN), OPTIONAL :: lscatter
+        !
+        REAL(DP) :: aux(env%system_cell%dfft%nnr)
+        CHARACTER(LEN=80) :: local_label = "mbx_charges"
+        !
+        !--------------------------------------------------------------------------------
+        !
+        !
+#if defined(__MPI)
+        IF (PRESENT(lscatter)) THEN
+            IF (lscatter) THEN
+                CALL env_scatter_grid(env%system_cell%dfft, rho, aux)
+            ELSE
+                aux = rho
+            END IF
+        ELSE
+            aux = rho
+        END IF
+#else
+        aux = rho
+#endif
+        !
+        CALL env%add_charges(env%system_cell%dfft%nnr, aux, local_label)
+        !
+        !--------------------------------------------------------------------------------
+    END SUBROUTINE add_mbx_charges
     !------------------------------------------------------------------------------------
     !
     !------------------------------------------------------------------------------------
