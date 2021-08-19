@@ -126,5 +126,7 @@ forces = qepy.force_mod.get_array_force().T
 forces += environ.get_force() * 2.0
 printt(forces)
 
+environ.clean()
+
 qepy.punch('all')
 qepy.qepy_stop_run(0, what = 'no')
