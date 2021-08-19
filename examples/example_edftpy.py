@@ -1,12 +1,20 @@
+import sys
+
 import numpy as np
 import qepy
 from edftpy.engine.engine_environ import EngineEnviron
 
 from mpi4py import MPI
 
+VERBOSE=True
+def printt(s):
+    if VERBOSE:
+        print(s)
+        sys.stdout.flush()
+
 comm = MPI.COMM_WORLD
 comm = comm.py2f()
-print('comm:', comm)
+printt(f'comm:{comm}')
 
 fname = 'dielectric.in'
 
@@ -41,19 +49,19 @@ rhohist = np.zeros((nnr, 1), order='F')
 dvtot = np.zeros((nnr), order='F')
 qepy.qepy_mod.qepy_get_rho(rho, False)
 
-# print(f'nat={nat}')
-# print(f'nelec={nelec}')
-# print(f'ntyp={ntyp}')
-# print(f'atom_label={atom_label[:, :ntyp]}')
-# print(f'alat={alat}')
-# print(f'at={at}')
-# print(f'gcutm={gcutm}')
-# print(f'ityp={ityp}')
-# print(f'zv={zv}')
-# print(f'tau={tau}')
-# print(f'nnr={nnr}')
-# print(f'vltot={vltot.shape}')
-# print(f'rho={np.sum(rho)}')
+printt(f'nat={nat}')
+printt(f'nelec={nelec}')
+printt(f'ntyp={ntyp}')
+printt(f'atom_label={atom_label[:, :ntyp]}')
+printt(f'alat={alat}')
+printt(f'at={at}')
+printt(f'gcutm={gcutm}')
+printt(f'ityp={ityp}')
+printt(f'zv={zv}')
+printt(f'tau={tau}')
+printt(f'nnr={nnr}')
+printt(f'vltot={vltot.shape}')
+printt(f'rho={np.sum(rho)}')
 
 inputs = {
         'nat': nat,
@@ -73,12 +81,14 @@ inputs = {
 }
 
 # ENVIRON INIT
+printt('init')
 environ = EngineEnviron()
 environ.initial(comm, **inputs)
 
 nstep = 3
 for i in range(nstep):
     # QE SCF
+    printt('scf')
     if i == 0 :
         initial = True
     else :
@@ -104,7 +114,7 @@ for i in range(nstep):
     # ENVIRON -> QEPY
     qepy.qepy_mod.qepy_set_extpot(embed, environ.get_potential())
 
-    print(f"corrected energy = {embed.etotal}")
+    printt(f"corrected energy = {embed.etotal}")
 
 
 qepy.qepy_calc_energies(embed)
@@ -114,7 +124,7 @@ qepy.qepy_forces(0)
 forces = qepy.force_mod.get_array_force().T
 
 forces += environ.get_force() * 2.0
-print(forces)
+printt(forces)
 
 qepy.punch('all')
 qepy.qepy_stop_run(0, what = 'no')

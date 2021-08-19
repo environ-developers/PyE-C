@@ -76,20 +76,22 @@ environ_setup.init_base_first(nelec, nat, ntyp, atom_label[:, :ntyp], False)
 printt("base 2")
 environ_setup.init_base_second(alat, at, comm, me, root, gcutm, e2_in)
 
-# update functions (TODO: rename the interface functions)
+# update functions
 printt("ions")
-environ_control.init_ions(nat, ntyp, ityp, zv[:ntyp], tau, alat)
+environ_control.update_ions(nat, ntyp, ityp, zv[:ntyp], tau, alat)
 printt("cell")
-environ_control.init_cell(at, alat)
+environ_control.update_cell(at, alat)
 printt("potential")
-environ_control.init_potential(vltot)
+environ_control.update_potential(vltot)
 printt("electrons")
-environ_control.init_electrons(nnr, rho, nelec, True)
+environ_control.update_electrons(rho, True)
 
 # calculator interface
-environ_calc.calc_potential(False, nnr, dvtot)
+printt("calcpotential")
+environ_calc.calc_potential(False, dvtot, lgather=True)
 
-nstep = 20
+printt("scf")
+nstep = 2
 for i in range(nstep):
     # QE SCF
     if i == 0 :
@@ -110,14 +112,13 @@ for i in range(nstep):
 
     # ENVIRON SCF
     printt("rho scatter")
-    environ_control.init_electrons(nnr, rho, nelec, True)
+    environ_control.update_electrons(rho, True)
     printt("v gather")
-    environ_calc.calc_potential(True, nnr, dvtot, True)
+    environ_calc.calc_potential(True, dvtot, lgather=True)
 
     # UPDATE ENERGY
-    environ_energy = np.zeros((1), dtype=float)
-    environ_calc.calc_energy(environ_energy)
-    embed.etotal += environ_energy[0]
+    environ_energy = environ_calc.calc_energy()
+    embed.etotal += environ_energy
 
     # ENVIRON OUTPUT
     environ_output.print_potential_shift()
@@ -137,12 +138,11 @@ qepy.qepy_forces(0)
 forces = qepy.force_mod.get_array_force().T
 
 force_environ = np.zeros((3, nat), dtype=float, order='F')
-environ_calc.calc_force(nat, force_environ)
+environ_calc.calc_force(force_environ)
 printt(force_environ.T)
 
 # TODO clean up environ stuff
 
 qepy.punch('all')
-qepy.qepy_stop_run(0, what = 'no')
-
+qepy.qepy_stop_run(0, what = 'no') 
 
