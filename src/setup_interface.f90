@@ -50,7 +50,7 @@ MODULE setup_interface
     !
     PRIVATE
     !
-    PUBLIC :: init_io, init_base_first, init_base_second
+    PUBLIC :: init_io, init_base_first, init_base_second, environ_clean
     !
     !------------------------------------------------------------------------------------
     

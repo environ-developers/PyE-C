@@ -91,7 +91,7 @@ printt("calcpotential")
 environ_calc.calc_potential(False, dvtot, lgather=True)
 
 printt("scf")
-nstep = 2
+nstep = 1
 for i in range(nstep):
     # QE SCF
     if i == 0 :
@@ -141,7 +141,7 @@ force_environ = np.zeros((3, nat), dtype=float, order='F')
 environ_calc.calc_force(force_environ)
 printt(force_environ.T)
 
-# TODO clean up environ stuff
+environ_setup.environ_clean(True)
 
 qepy.punch('all')
 qepy.qepy_stop_run(0, what = 'no') 
