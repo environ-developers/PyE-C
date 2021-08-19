@@ -41,7 +41,7 @@ MODULE calc_interface
     !
     PRIVATE
     !
-    PUBLIC :: calc_potential, calc_energy, calc_force, calc_denergy
+    PUBLIC :: calc_potential, calc_energy, calc_force, calc_denergy, get_nnt
     !------------------------------------------------------------------------------------
     
     !
@@ -57,19 +57,18 @@ CONTAINS
     !>
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE calc_potential(update, nnr, dvtot, local_verbose, lgather)
+    SUBROUTINE calc_potential(update, dvtot, local_verbose, lgather)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
         !
         LOGICAL, INTENT(IN) :: update
-        INTEGER, INTENT(IN) :: nnr
         INTEGER, INTENT(IN), OPTIONAL :: local_verbose
         LOGICAL, INTENT(IN), OPTIONAL :: lgather
         !
-        REAL(DP), INTENT(OUT) :: dvtot(nnr)
+        REAL(DP), INTENT(OUT) :: dvtot(env%system_cell%dfft%nnt)
         !
-        REAL(DP) :: aux(nnr)
+        REAL(DP) :: aux(env%system_cell%dfft%nnr)
         !
         !--------------------------------------------------------------------------------
         !
@@ -104,7 +103,7 @@ CONTAINS
         !
         IMPLICIT NONE
         !
-        REAL(DP), INTENT(INOUT) :: total_energy
+        REAL(DP), INTENT(OUT) :: total_energy
         !
         !--------------------------------------------------------------------------------
         !
@@ -118,18 +117,16 @@ CONTAINS
     !>
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE calc_force(nat, force_environ)
+    SUBROUTINE calc_force(force_environ)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
         !
-        INTEGER, INTENT(IN) :: nat
-        !
-        REAL(DP), INTENT(INOUT) :: force_environ(3, nat)
+        REAL(DP), INTENT(OUT) :: force_environ(3, env%system_ions%number)
         !
         !--------------------------------------------------------------------------------
         !
-        CALL env%force(nat, force_environ)
+        CALL env%force(env%system_ions%number, force_environ)
         !
         RETURN
         !
@@ -144,7 +141,7 @@ CONTAINS
         !
         IMPLICIT NONE
         !
-        REAL(DP), INTENT(INOUT) :: total_energy
+        REAL(DP), INTENT(OUT) :: total_energy
         !
         !--------------------------------------------------------------------------------
         !
@@ -154,6 +151,25 @@ CONTAINS
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE calc_denergy
+    !------------------------------------------------------------------------------------
+    !>
+    !!
+    !------------------------------------------------------------------------------------
+    SUBROUTINE get_nnt(nnt)
+        !--------------------------------------------------------------------------------
+        !
+        IMPLICIT NONE
+        !
+        INTEGER, INTENT(OUT) :: nnt
+        !
+        !--------------------------------------------------------------------------------
+        !
+        nnt = env%system_cell%dfft%nnt
+        !
+        RETURN
+        !
+        !--------------------------------------------------------------------------------
+    END SUBROUTINE get_nnt
     !------------------------------------------------------------------------------------
     !------------------------------------------------------------------------------------
     !
