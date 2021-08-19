@@ -88,8 +88,6 @@ CONTAINS
         !
         CALL env%init_potential(env%system_cell%nnr, aux)
         !
-        RETURN
-        !
         !--------------------------------------------------------------------------------
     END SUBROUTINE update_potential
     !------------------------------------------------------------------------------------
@@ -113,8 +111,6 @@ CONTAINS
         CALL env%init_cell(at_scaled)
         !
         DEALLOCATE(at_scaled)
-        !
-        RETURN
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE update_cell
@@ -141,8 +137,6 @@ CONTAINS
         CALL env%init_ions(nat, ntyp, ityp, zv, tau_scaled)
         !
         DEALLOCATE(tau_scaled)
-        !
-        RETURN
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE update_ions
@@ -182,8 +176,6 @@ CONTAINS
         !
         CALL env%init_electrons(env%system_cell%dfft%nnr, aux, nelec)
         !
-        RETURN
-        !
         !--------------------------------------------------------------------------------
     END SUBROUTINE update_electrons
     !------------------------------------------------------------------------------------
@@ -201,8 +193,6 @@ CONTAINS
         !--------------------------------------------------------------------------------
         !
         CALL env%init_response(env%system_cell%dfft%nnr, drho)
-        !
-        RETURN
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE update_response

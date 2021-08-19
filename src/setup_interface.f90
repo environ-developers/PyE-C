@@ -102,8 +102,6 @@ CONTAINS
         !
         lstdout = lstdout .AND. ionode
         !
-        RETURN
-        !
         !--------------------------------------------------------------------------------
     END SUBROUTINE init_io
     !------------------------------------------------------------------------------------
@@ -196,8 +194,6 @@ CONTAINS
         !
         DEALLOCATE(at_scaled)
         !
-        RETURN
-        !
         !--------------------------------------------------------------------------------
     END SUBROUTINE init_base_second
     !------------------------------------------------------------------------------------
@@ -226,8 +222,6 @@ CONTAINS
         CALL environ_clean_second(lflag)
         !
         CALL env_deallocate_mp_buffers()
-        !
-        RETURN
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE environ_clean
@@ -294,8 +288,6 @@ CONTAINS
         CALL env%environment_ions%destroy(lflag)
         !
         CALL env%environment_system%destroy(lflag)
-        !
-        RETURN
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE environ_clean_first
@@ -366,8 +358,6 @@ CONTAINS
         !
         CALL env%system_cell%destroy(lflag)
         !
-        RETURN
-        !
         !--------------------------------------------------------------------------------
     END SUBROUTINE environ_clean_second
     !------------------------------------------------------------------------------------
@@ -386,8 +376,6 @@ CONTAINS
         CALL env%outer%destroy(lflag)
         !
         CALL env%reference%destroy(lflag)
-        !
-        RETURN
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE electrostatic_clean
