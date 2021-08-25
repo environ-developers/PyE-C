@@ -28,7 +28,7 @@ embed.finish = False
 nat = qepy.ions_base.get_nat()
 ntyp = qepy.ions_base.get_nsp()
 nelec = qepy.klist.get_nelec()
-atom_label = qepy.ions_base.get_array_atm()
+atom_label = qepy.ions_base.get_array_atm().view('c')
 
 alat = qepy.cell_base.get_alat()
 at = qepy.cell_base.get_array_at()

@@ -31,14 +31,7 @@ embed.finish = False
 nat = qepy.ions_base.get_nat()
 ntyp = qepy.ions_base.get_nsp()
 nelec = qepy.klist.get_nelec()
-atom_array = qepy.ions_base.get_array_atm().view('c')
-
-# for i in range(atm.shape[-1]):
-#     s = atm[:,i].view('S3')[0].strip().decode("utf-8")
-#     s = '{:3s}'.format(s) # QE forces size of CHAR to 3, so we need to pass this to environ as a fixed length
-#     # character too (TODO: provide a consistent interface)
-#     atom_label.append(s)
-
+atom_label = qepy.ions_base.get_array_atm().view('c')
 
 alat = qepy.cell_base.get_alat()
 at = qepy.cell_base.get_array_at()
@@ -52,7 +45,7 @@ tau = qepy.ions_base.get_array_tau()
 printt(f'nat={nat}')
 printt(f'nelec={nelec}')
 printt(f'ntyp={ntyp}')
-printt(f'atom_label={atom_array[:, :ntyp]}')
+printt(f'atom_label={atom_label[:, :ntyp]}')
 printt(f'alat={alat}')
 printt(f'at={at}')
 printt(f'gcutm={gcutm}')
@@ -64,7 +57,7 @@ printt(f'tau={tau}')
 printt('io')
 environ_setup.init_io(True, 0, comm, 6)
 printt("base 1")
-environ_setup.init_base_first(nelec, nat, ntyp, atom_array[:, :ntyp], False)
+environ_setup.init_base_first(nelec, nat, ntyp, atom_label[:, :ntyp], False)
 printt("base 2")
 environ_setup.init_base_second(alat, at, comm, gcutm, e2_in)
 
