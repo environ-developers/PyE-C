@@ -195,7 +195,7 @@ CONTAINS
         aux = rho
         !
 #endif
-        CALL env%add_charges(env%system_cell%dfft%nnr, aux, local_label)
+        !CALL env%environ_add_charges(env%system_cell%dfft%nnr, aux, local_label)
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE add_mbx_charges

@@ -31,7 +31,14 @@ embed.finish = False
 nat = qepy.ions_base.get_nat()
 ntyp = qepy.ions_base.get_nsp()
 nelec = qepy.klist.get_nelec()
-atom_label = qepy.ions_base.get_array_atm()
+atom_array = qepy.ions_base.get_array_atm().view('c')
+
+# for i in range(atm.shape[-1]):
+#     s = atm[:,i].view('S3')[0].strip().decode("utf-8")
+#     s = '{:3s}'.format(s) # QE forces size of CHAR to 3, so we need to pass this to environ as a fixed length
+#     # character too (TODO: provide a consistent interface)
+#     atom_label.append(s)
+
 
 alat = qepy.cell_base.get_alat()
 at = qepy.cell_base.get_array_at()
@@ -42,31 +49,22 @@ ityp = qepy.ions_base.get_array_ityp()
 zv = qepy.ions_base.get_array_zv()
 tau = qepy.ions_base.get_array_tau()
 
-printt(f'nnr={nnr}')
-
-rho = np.zeros((nnr, 1), order='F')
-rhohist = np.zeros((nnr, 1), order='F')
-dvtot = np.zeros((nnr), order='F')
-printt("qepy get rho")
-qepy.qepy_mod.qepy_get_rho(rho, True)
-
 printt(f'nat={nat}')
 printt(f'nelec={nelec}')
 printt(f'ntyp={ntyp}')
-printt(f'atom_label={atom_label[:, :ntyp]}')
+printt(f'atom_label={atom_array[:, :ntyp]}')
 printt(f'alat={alat}')
 printt(f'at={at}')
 printt(f'gcutm={gcutm}')
 printt(f'ityp={ityp}')
 printt(f'zv={zv}')
 printt(f'tau={tau}')
-printt(f'rho={np.sum(rho)}')
 
 # ENVIRON INIT
 printt('io')
 environ_setup.init_io(True, 0, comm, 6)
 printt("base 1")
-environ_setup.init_base_first(nelec, nat, ntyp, atom_label[:, :ntyp], False)
+environ_setup.init_base_first(nelec, nat, ntyp, atom_array[:, :ntyp], False)
 printt("base 2")
 environ_setup.init_base_second(alat, at, comm, gcutm, e2_in)
 
@@ -75,6 +73,15 @@ printt("ions")
 environ_control.update_ions(nat, ntyp, ityp, zv[:ntyp], tau, alat)
 printt("cell")
 environ_control.update_cell(at, alat)
+
+nnt = environ_calc.get_nnt()
+rho = np.zeros((nnt, 1), order='F')
+rhohist = np.zeros((nnt, 1), order='F')
+dvtot = np.zeros((nnt), order='F')
+printt("qepy get rho")
+qepy.qepy_mod.qepy_get_rho(rho, True)
+printt(f'rho={np.sum(rho)}')
+
 printt("electrons")
 environ_control.update_electrons(rho, True)
 
@@ -105,6 +112,7 @@ for i in range(nstep):
     # ENVIRON SCF
     printt("rho scatter")
     environ_control.update_electrons(rho, True)
+    environ_control.add_mbx_charges(rho, True)
     printt("v gather")
     environ_calc.calc_potential(True, dvtot, lgather=True)
 

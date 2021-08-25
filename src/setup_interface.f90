@@ -106,11 +106,7 @@ CONTAINS
         !
         LOGICAL, INTENT(IN) :: use_internal_pbc_corr
         INTEGER, INTENT(IN) :: nelec, nat, ntyp
-        INTEGER, INTENT(IN) :: atom_label(3, ntyp)
-        !
-        INTEGER :: i, j
-        !
-        CHARACTER(LEN=3) :: atom_chr(ntyp)
+        CHARACTER(LEN=3), INTENT(IN) :: atom_label(ntyp)
         !
         CHARACTER(LEN=80) :: sub_name = 'init_base_first'
         !
@@ -121,19 +117,8 @@ CONTAINS
         verbose_ = verbose ! set internal verbosity from input
         !
         !--------------------------------------------------------------------------------
-        ! # TODO move this out into a util function or move into python
         !
-        DO i = 1, ntyp
-            !
-            DO j = 1, 3
-                atom_chr(i) (j:j + 1) = CHAR(atom_label(j, i))
-            END DO
-            !
-        END DO
-        !
-        !--------------------------------------------------------------------------------
-        !
-        CALL env%init_first(nelec, nat, ntyp, atom_chr, use_internal_pbc_corr)
+        CALL env%init_first(nelec, nat, ntyp, atom_label, use_internal_pbc_corr)
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE init_base_first
