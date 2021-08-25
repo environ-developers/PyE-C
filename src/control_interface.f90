@@ -170,7 +170,7 @@ CONTAINS
         !
         IMPLICIT NONE
         !
-        REAL(DP), INTENT(IN) :: rho(env%system_cell%dfft%nnt)
+        REAL(DP), INTENT(IN) :: rho(:)
         LOGICAL, INTENT(IN), OPTIONAL :: lscatter
         !
         REAL(DP) :: aux(env%system_cell%dfft%nnr)
