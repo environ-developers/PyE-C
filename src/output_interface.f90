@@ -20,7 +20,8 @@
 !
 !----------------------------------------------------------------------------------------
 !
-! Authors: Edan Bainglass (Department of Physics, UNT)
+! Authors: Edan Bainglass   (Department of Physics, UNT)
+!          Matthew Truscott (Department of Physics, UNT)
 !
 !----------------------------------------------------------------------------------------
 !>
@@ -29,9 +30,9 @@
 MODULE output_interface
     !------------------------------------------------------------------------------------
     !
-    USE environ_param, ONLY: BOHR_RADIUS_SI, RYDBERG_SI, RYTOEV
-    !
     USE env_base_io, ONLY: prog, ionode, program_unit
+    !
+    USE environ_param, ONLY: BOHR_RADIUS_SI, RYDBERG_SI, RYTOEV
     !
     USE class_environ, ONLY: env
     !
@@ -41,15 +42,12 @@ MODULE output_interface
     !
     PRIVATE
     !
-    PUBLIC :: print_energies, print_potential_shift, &
-              print_potential_warning, print_summary, &
-              print_clocks, update_output_program_unit
-    !------------------------------------------------------------------------------------
-    
+    PUBLIC :: print_energies, print_potential_shift, print_potential_warning, &
+              print_summary, print_clocks, update_output_program_unit
     !
     !------------------------------------------------------------------------------------
 CONTAINS
-!------------------------------------------------------------------------------------
+    !------------------------------------------------------------------------------------
     !------------------------------------------------------------------------------------
     !
     !                                   OUTPUT METHODS
@@ -94,8 +92,6 @@ CONTAINS
             END SELECT
             !
         END IF
-        !
-        RETURN
         !
         !--------------------------------------------------------------------------------
         !
@@ -200,12 +196,11 @@ CONTAINS
             !
         END IF
         !
+        !--------------------------------------------------------------------------------
+        !
         IF (env%lsemiconductor) CALL env_print_clock('calc_vms')
         !
-        !--------------------------------------------------------------------------------
-        ! TDDFT
-        !
-        IF (env%ltddfpt) CALL env_print_clock('calc_vsolvent_tddfpt')
+        IF (env%ltddfpt) CALL env_print_clock('calc_vsolvent_tddfpt') ! TDDFT
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE print_clocks

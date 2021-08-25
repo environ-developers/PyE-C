@@ -20,8 +20,9 @@
 !
 !----------------------------------------------------------------------------------------
 !
-! Authors: Edan Bainglass (Department of Physics, UNT)
-! // TODO update names of these subroutines
+! Authors: Edan Bainglass   (Department of Physics, UNT)
+!          Matthew Truscott (Department of Physics, UNT)
+!
 !----------------------------------------------------------------------------------------
 !>
 !!
@@ -30,12 +31,11 @@ MODULE control_interface
     !------------------------------------------------------------------------------------
     !
     USE env_base_scatter, ONLY: env_scatter_grid
+    USE env_types_fft, ONLY: env_fft_type_descriptor
     !
     USE environ_param, ONLY: DP
     !
     USE class_environ, ONLY: env
-    !
-    USE env_types_fft, ONLY: env_fft_type_descriptor
     !
     !------------------------------------------------------------------------------------
     !
@@ -47,13 +47,11 @@ MODULE control_interface
               add_mbx_charges
     !
     !------------------------------------------------------------------------------------
-    !
-    !------------------------------------------------------------------------------------
 CONTAINS
     !------------------------------------------------------------------------------------
     !------------------------------------------------------------------------------------
     !
-    !                               UPDATE METHODS
+    !                                   UPDATE METHODS
     !
     !------------------------------------------------------------------------------------
     !------------------------------------------------------------------------------------
@@ -71,18 +69,19 @@ CONTAINS
         !
         !--------------------------------------------------------------------------------
         !
-        ALLOCATE(at_scaled(3, 3))
+        ALLOCATE (at_scaled(3, 3))
         at_scaled = at * alat
         !
         CALL env%init_cell(at_scaled)
         !
-        DEALLOCATE(at_scaled)
+        DEALLOCATE (at_scaled)
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE update_cell
     !------------------------------------------------------------------------------------
     !>
-    !! // TODO consider whether ions are ever changed or just need updated positions
+    !! # TODO consider whether ions are ever changed or just need updated positions
+    !!
     !------------------------------------------------------------------------------------
     SUBROUTINE update_ions(nat, ntyp, ityp, zv, tau, alat)
         !--------------------------------------------------------------------------------
@@ -97,12 +96,12 @@ CONTAINS
         !
         !--------------------------------------------------------------------------------
         !
-        ALLOCATE(tau_scaled(3, nat))
+        ALLOCATE (tau_scaled(3, nat))
         tau_scaled = tau * alat
         !
         CALL env%init_ions(nat, ntyp, ityp, zv, tau_scaled)
         !
-        DEALLOCATE(tau_scaled)
+        DEALLOCATE (tau_scaled)
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE update_ions
@@ -123,21 +122,22 @@ CONTAINS
         !
         !--------------------------------------------------------------------------------
         !
-        !
 #if defined(__MPI)
         IF (PRESENT(lscatter)) THEN
+            !
             IF (lscatter) THEN
                 CALL env_scatter_grid(env%system_cell%dfft, rho, aux)
             ELSE
                 aux = rho
             END IF
+            !
         ELSE
             aux = rho
         END IF
+        !
 #else
         aux = rho
 #endif
-        !
         nelec = REAL(env%system_electrons%number, DP)
         !
         CALL env%init_electrons(env%system_cell%dfft%nnr, aux, nelec)
@@ -153,8 +153,7 @@ CONTAINS
         !
         IMPLICIT NONE
         !
-        ! // TODO may need scatter
-        REAL(DP), INTENT(IN) :: drho(env%system_cell%dfft%nnr)
+        REAL(DP), INTENT(IN) :: drho(env%system_cell%dfft%nnr) ! # TODO may need scatter
         !
         !--------------------------------------------------------------------------------
         !
@@ -162,7 +161,7 @@ CONTAINS
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE update_response
-    !------------------------------------------------------------------------------------    
+    !------------------------------------------------------------------------------------
     !>
     !!
     !------------------------------------------------------------------------------------
@@ -179,21 +178,23 @@ CONTAINS
         !
         !--------------------------------------------------------------------------------
         !
-        !
 #if defined(__MPI)
         IF (PRESENT(lscatter)) THEN
+            !
             IF (lscatter) THEN
                 CALL env_scatter_grid(env%system_cell%dfft, rho, aux)
             ELSE
                 aux = rho
             END IF
+            !
         ELSE
             aux = rho
         END IF
+        !
 #else
         aux = rho
-#endif
         !
+#endif
         CALL env%add_charges(env%system_cell%dfft%nnr, aux, local_label)
         !
         !--------------------------------------------------------------------------------

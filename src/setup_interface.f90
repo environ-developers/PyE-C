@@ -20,7 +20,8 @@
 !
 !----------------------------------------------------------------------------------------
 !
-! Authors: Edan Bainglass (Department of Physics, UNT)
+! Authors: Edan Bainglass   (Department of Physics, UNT)
+!          Matthew Truscott (Department of Physics, UNT)
 !
 !----------------------------------------------------------------------------------------
 !>
@@ -31,8 +32,8 @@ MODULE setup_interface
     !
     USE env_char_ops, ONLY: env_uppercase
     !
-    USE env_base_io, ONLY: prog, ionode, ionode_id, comm, program_unit, environ_unit, lstdout, &
-                           verbose_ => verbose
+    USE env_base_io, ONLY: prog, ionode, ionode_id, comm, program_unit, environ_unit, &
+                           lstdout, verbose_ => verbose
     !
     USE env_io, ONLY: env_find_free_unit
     !
@@ -53,7 +54,7 @@ MODULE setup_interface
     PUBLIC :: init_io, init_base_first, init_base_second, environ_clean
     !
     !------------------------------------------------------------------------------------
-    
+
     !
     !------------------------------------------------------------------------------------
 CONTAINS
@@ -68,12 +69,11 @@ CONTAINS
     !! Set global I/O constants
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE init_io(prog_, ionode_, ionode_id_, comm_, program_unit_)
+    SUBROUTINE init_io(ionode_, ionode_id_, comm_, program_unit_)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
         !
-        CHARACTER(LEN=*), INTENT(IN) :: prog_
         LOGICAL, INTENT(IN) :: ionode_
         INTEGER, INTENT(IN) :: ionode_id_
         INTEGER, INTENT(IN) :: comm_
@@ -88,19 +88,9 @@ CONTAINS
         program_unit = program_unit_
         environ_unit = env_find_free_unit()
         !
-        prog = env_uppercase(prog_(1:2))
+        prog = 'PW'
         !
-        SELECT CASE (prog)
-            !
-        CASE ('PW', 'CP')
-            lstdout = .TRUE.
-            !
-        CASE DEFAULT
-            lstdout = .FALSE.
-            !
-        END SELECT
-        !
-        lstdout = lstdout .AND. ionode
+        lstdout = .TRUE. .AND. ionode
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE init_io
@@ -109,8 +99,7 @@ CONTAINS
     !! Set global base
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE init_base_first(nelec, nat, ntyp, atom_label, &
-                                       use_internal_pbc_corr)
+    SUBROUTINE init_base_first(nelec, nat, ntyp, atom_label, use_internal_pbc_corr)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
@@ -118,24 +107,29 @@ CONTAINS
         LOGICAL, INTENT(IN) :: use_internal_pbc_corr
         INTEGER, INTENT(IN) :: nelec, nat, ntyp
         INTEGER, INTENT(IN) :: atom_label(3, ntyp)
-        CHARACTER(LEN=3) :: atom_chr(ntyp)
         !
         INTEGER :: i, j
         !
-        CHARACTER(LEN=80) :: sub_name = 'init_base_first'
+        CHARACTER(LEN=3) :: atom_chr(ntyp)
         !
-        ! //TODO move this out into a util function or move into python
-        DO i = 1, ntyp
-            DO j = 1, 3
-                atom_chr(i)(j:j+1) = CHAR(atom_label(j, i))
-            ENDDO
-        ENDDO
+        CHARACTER(LEN=80) :: sub_name = 'init_base_first'
         !
         !--------------------------------------------------------------------------------
         !
         CALL read_environ_input() ! read namelists and cards from environ.in
         !
         verbose_ = verbose ! set internal verbosity from input
+        !
+        !--------------------------------------------------------------------------------
+        ! # TODO move this out into a util function or move into python
+        !
+        DO i = 1, ntyp
+            !
+            DO j = 1, 3
+                atom_chr(i) (j:j + 1) = CHAR(atom_label(j, i))
+            END DO
+            !
+        END DO
         !
         !--------------------------------------------------------------------------------
         !
@@ -147,12 +141,12 @@ CONTAINS
     !>
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE init_base_second(alat, at, comm_in, me, root, gcutm, e2_in)
+    SUBROUTINE init_base_second(alat, at, comm_in, gcutm, e2_in)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
         !
-        INTEGER, INTENT(IN) :: comm_in, me, root
+        INTEGER, INTENT(IN) :: comm_in
         REAL(DP), INTENT(IN) :: alat
         REAL(DP), INTENT(IN) :: at(3, 3)
         REAL(DP), INTENT(IN) :: gcutm
@@ -184,22 +178,22 @@ CONTAINS
         !
         IF (alat < 1.0_DP) CALL env_warning('strange lattice parameter')
         !
-        ALLOCATE(at_scaled(3, 3))
+        ALLOCATE (at_scaled(3, 3))
         at_scaled = at * alat
         gcutm_scaled = gcutm / alat**2
         !
         !--------------------------------------------------------------------------------
         !
-        CALL env%init_second(at_scaled, comm_in, me, root, gcutm_scaled)
+        CALL env%init_second(at_scaled, comm_in, gcutm_scaled)
         !
-        DEALLOCATE(at_scaled)
+        DEALLOCATE (at_scaled)
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE init_base_second
     !------------------------------------------------------------------------------------
     !------------------------------------------------------------------------------------
     !
-    !                               CLEANING METHODS
+    !                                  CLEANING METHODS
     !
     !------------------------------------------------------------------------------------
     !------------------------------------------------------------------------------------

@@ -35,8 +35,6 @@ atom_label = qepy.ions_base.get_array_atm()
 
 alat = qepy.cell_base.get_alat()
 at = qepy.cell_base.get_array_at()
-me = 0
-root = 0
 gcutm = qepy.gvect.get_gcutm()
 e2_in = qepy.constants.e2
 
@@ -66,11 +64,11 @@ printt(f'rho={np.sum(rho)}')
 
 # ENVIRON INIT
 printt('io')
-environ_setup.init_io('PW', True, 0, comm, 6)
+environ_setup.init_io(True, 0, comm, 6)
 printt("base 1")
 environ_setup.init_base_first(nelec, nat, ntyp, atom_label[:, :ntyp], False)
 printt("base 2")
-environ_setup.init_base_second(alat, at, comm, me, root, gcutm, e2_in)
+environ_setup.init_base_second(alat, at, comm, gcutm, e2_in)
 
 # update functions
 printt("ions")
