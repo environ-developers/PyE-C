@@ -34,7 +34,8 @@ MODULE calc_interface
     !
     USE environ_param, ONLY: DP
     !
-    USE class_environ, ONLY: env
+    USE env_global_objects, ONLY: env, setup
+    USE class_calculator, ONLY: calc
     !
     !------------------------------------------------------------------------------------
     !
@@ -66,13 +67,13 @@ CONTAINS
         INTEGER, INTENT(IN), OPTIONAL :: local_verbose
         LOGICAL, INTENT(IN), OPTIONAL :: lgather
         !
-        REAL(DP), INTENT(OUT) :: potential(env%system_cell%dfft%nnt)
+        REAL(DP), INTENT(OUT) :: potential(setup%system_cell%dfft%nnt)
         !
-        REAL(DP) :: aux(env%system_cell%dfft%nnr)
+        REAL(DP) :: aux(setup%system_cell%dfft%nnr)
         !
         !--------------------------------------------------------------------------------
         !
-        CALL env%potential(update, local_verbose)
+        CALL calc%potential(env, update, local_verbose)
         !
         aux = env%dvtot%of_r
         !
@@ -80,7 +81,7 @@ CONTAINS
         IF (PRESENT(lgather)) THEN
             !
             IF (lgather) THEN
-                CALL env_gather_grid(env%system_cell%dfft, aux, potential)
+                CALL env_gather_grid(setup%system_cell%dfft, aux, potential)
             ELSE
                 potential = aux
             END IF
@@ -107,7 +108,7 @@ CONTAINS
         !
         !--------------------------------------------------------------------------------
         !
-        CALL env%energy(total_energy)
+        CALL calc%energy(env, total_energy)
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE calc_energy
@@ -124,7 +125,7 @@ CONTAINS
         !
         !--------------------------------------------------------------------------------
         !
-        CALL env%force(env%system_ions%number, force_environ)
+        CALL calc%force(env, env%system_ions%number, force_environ)
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE calc_force
@@ -141,7 +142,7 @@ CONTAINS
         !
         !--------------------------------------------------------------------------------
         !
-        CALL env%denergy(total_energy)
+        CALL calc%denergy(env, total_energy)
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE calc_denergy
@@ -164,7 +165,7 @@ CONTAINS
         !
         !--------------------------------------------------------------------------------
         !
-        nnt = env%system_cell%dfft%nnt
+        nnt = setup%system_cell%dfft%nnt
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE get_nnt
@@ -181,7 +182,7 @@ CONTAINS
         !
         !--------------------------------------------------------------------------------
         !
-        nr1x = env%system_cell%dfft%nr1x
+        nr1x = setup%system_cell%dfft%nr1x
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE get_nr1x
@@ -198,7 +199,7 @@ CONTAINS
         !
         !--------------------------------------------------------------------------------
         !
-        nr2x = env%system_cell%dfft%nr2x
+        nr2x = setup%system_cell%dfft%nr2x
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE get_nr2x
@@ -215,7 +216,7 @@ CONTAINS
         !
         !--------------------------------------------------------------------------------
         !
-        nr3x = env%system_cell%dfft%nr3x
+        nr3x = setup%system_cell%dfft%nr3x
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE get_nr3x

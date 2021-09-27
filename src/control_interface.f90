@@ -35,7 +35,7 @@ MODULE control_interface
     !
     USE environ_param, ONLY: DP
     !
-    USE class_environ, ONLY: env
+    USE env_global_objects, ONLY: env, setup
     !
     !------------------------------------------------------------------------------------
     !
@@ -72,7 +72,11 @@ CONTAINS
         ALLOCATE (at_scaled(3, 3))
         at_scaled = at * alat
         !
-        CALL env%init_cell(at_scaled)
+        CALL setup%update_cell(at_scaled)
+        !
+        CALL env%update_cell_dependent_quantities()
+        !
+        CALL setup%end_cell_update()
         !
         DEALLOCATE (at_scaled)
         !
@@ -80,17 +84,15 @@ CONTAINS
     END SUBROUTINE update_cell
     !------------------------------------------------------------------------------------
     !>
-    !! # TODO consider whether ions are ever changed or just need updated positions
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE update_ions(nat, ntyp, ityp, zv, tau, alat)
+    SUBROUTINE update_ions(nat, tau, alat)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
         !
-        INTEGER, INTENT(IN) :: nat, ntyp
-        INTEGER, INTENT(IN) :: ityp(nat)
-        REAL(DP), INTENT(IN) :: zv(ntyp), tau(3, nat), alat
+        INTEGER, INTENT(IN) :: nat
+        REAL(DP), INTENT(IN) :: tau(3, nat), alat
         !
         REAL(DP), ALLOCATABLE :: tau_scaled(:, :)
         !
@@ -99,7 +101,7 @@ CONTAINS
         ALLOCATE (tau_scaled(3, nat))
         tau_scaled = tau * alat
         !
-        CALL env%init_ions(nat, ntyp, ityp, zv, tau_scaled)
+        CALL env%update_ions(nat, tau_scaled)
         !
         DEALLOCATE (tau_scaled)
         !
@@ -114,10 +116,10 @@ CONTAINS
         !
         IMPLICIT NONE
         !
-        REAL(DP), INTENT(IN) :: rho(env%system_cell%dfft%nnt)
+        REAL(DP), INTENT(IN) :: rho(setup%system_cell%dfft%nnt)
         LOGICAL, INTENT(IN), OPTIONAL :: lscatter
         !
-        REAL(DP) :: aux(env%system_cell%dfft%nnr)
+        REAL(DP) :: aux(setup%system_cell%dfft%nnr)
         REAL(DP) :: nelec
         !
         !--------------------------------------------------------------------------------
@@ -126,7 +128,7 @@ CONTAINS
         IF (PRESENT(lscatter)) THEN
             !
             IF (lscatter) THEN
-                CALL env_scatter_grid(env%system_cell%dfft, rho, aux)
+                CALL env_scatter_grid(setup%system_cell%dfft, rho, aux)
             ELSE
                 aux = rho
             END IF
@@ -140,7 +142,7 @@ CONTAINS
 #endif
         nelec = REAL(env%system_electrons%number, DP)
         !
-        CALL env%init_electrons(env%system_cell%dfft%nnr, aux, nelec)
+        CALL env%update_electrons(setup%system_cell%dfft%nnr, aux, nelec)
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE update_electrons
@@ -153,11 +155,11 @@ CONTAINS
         !
         IMPLICIT NONE
         !
-        REAL(DP), INTENT(IN) :: drho(env%system_cell%dfft%nnr) ! # TODO may need scatter
+        REAL(DP), INTENT(IN) :: drho(setup%system_cell%dfft%nnr) ! # TODO may need scatter
         !
         !--------------------------------------------------------------------------------
         !
-        CALL env%init_response(env%system_cell%dfft%nnr, drho)
+        CALL env%update_response(setup%system_cell%dfft%nnr, drho)
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE update_response
@@ -173,8 +175,9 @@ CONTAINS
         REAL(DP), INTENT(IN) :: rho(:)
         LOGICAL, INTENT(IN), OPTIONAL :: lscatter
         !
-        REAL(DP) :: aux(env%system_cell%dfft%nnr)
-        CHARACTER(LEN=80) :: local_label = "mbx_charges"
+        REAL(DP) :: aux(setup%system_cell%dfft%nnr)
+        !
+        CHARACTER(LEN=80) :: local_label = 'mbx_charges'
         !
         !--------------------------------------------------------------------------------
         !
@@ -182,7 +185,7 @@ CONTAINS
         IF (PRESENT(lscatter)) THEN
             !
             IF (lscatter) THEN
-                CALL env_scatter_grid(env%system_cell%dfft, rho, aux)
+                CALL env_scatter_grid(setup%system_cell%dfft, rho, aux)
             ELSE
                 aux = rho
             END IF
@@ -195,7 +198,7 @@ CONTAINS
         aux = rho
         !
 #endif
-        !CALL env%environ_add_charges(env%system_cell%dfft%nnr, aux, local_label)
+        CALL env%add_charges(setup%system_cell%dfft%nnr, aux, local_label)
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE add_mbx_charges
