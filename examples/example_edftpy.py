@@ -13,12 +13,12 @@ def printt(s):
         sys.stdout.flush()
 
 comm = MPI.COMM_WORLD
-comm = comm.py2f()
+#comm = comm.py2f()
 printt(f'comm:{comm}')
 
 fname = 'dielectric.in'
 
-qepy.qepy_pwscf(fname, comm)
+qepy.qepy_pwscf(fname, comm.py2f())
 
 embed = qepy.qepy_common.embed_base()
 embed.exttype = 0
@@ -35,7 +35,6 @@ at = qepy.cell_base.get_array_at()
 me = 0
 root = 0
 gcutm = qepy.gvect.get_gcutm()
-e2_in = qepy.constants.e2
 
 ityp = qepy.ions_base.get_array_ityp()
 zv = qepy.ions_base.get_array_zv()
@@ -72,18 +71,18 @@ inputs = {
         'alat': alat,
         'at': at,
         'gcutm': gcutm,
-        'e2': e2_in,
         'zv': zv,
         'tau': tau,
         'vltot': vltot,
         'nnr': nnr,
         'rho': rho,
+        'do_comp_mt': False,
 }
 
 # ENVIRON INIT
 printt('init')
 environ = EngineEnviron()
-environ.initial(comm, **inputs)
+environ.initial(comm=comm, **inputs)
 
 nstep = 3
 for i in range(nstep):
@@ -108,7 +107,7 @@ for i in range(nstep):
     environ.scf(rho)
 
     # UPDATE ENERGY
-    environ_energy = environ.get_energy()
+    environ_energy = environ.calc_energy()
     embed.etotal += environ_energy * 2.0
 
     # ENVIRON -> QEPY
@@ -126,7 +125,7 @@ forces = qepy.force_mod.get_array_force().T
 forces += environ.get_force() * 2.0
 printt(forces)
 
-environ.clean()
+environ.stop_run()
 
 qepy.punch('all')
 qepy.qepy_stop_run(0, what = 'no')
