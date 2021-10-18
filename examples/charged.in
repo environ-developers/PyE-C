@@ -3,6 +3,8 @@
    calculation = 'scf'
    restart_mode = 'from_scratch'
    tprnfor = .TRUE.
+   pseudo_dir = 'pseudo'
+   outdir = 'results_dielectric'
    !
  /
  &SYSTEM
