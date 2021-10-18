@@ -40,6 +40,10 @@ ifeq ($(MPIF90), mpiifort)
 	FCOMP = intelem
 	LIBS = ${BLAS_LIBS}
 	F2PYFLAGS = --f90exec=mpiifort
+else
+	FCOMP = gnu95
+	LIBS = ${BLAS_LIBS}
+	F2PYFLAGS = --f90exec=mpif90
 endif
 
 UNAME = $(shell uname)
@@ -95,5 +99,3 @@ libsrc.a: ${LIBSRC_OBJECTS}
 _${PYTHON_MODN}.so: libsrc.a ${LIBSRC_FILES}
 	f90wrap -m ${PYTHON_MODN} ${LIBSRC_WRAP_FILES} -k ${KIND_MAP} -v -P
 	f2py-f90wrap --fcompiler=$(FCOMP) ${LIBS} ${F2PYFLAGS} --build-dir . -c -m _${PYTHON_MODN} -L. -lsrc ${ENVLIBS} f90wrap*.f90
-
-include make.depend
