@@ -1,2 +1,6 @@
 .python-version
-.vscode
+.vscode/
+Environ/
+build/
+.eggs
+*.egg-info
