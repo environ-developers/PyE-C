@@ -7,135 +7,182 @@ import pyec.control_interface as environ_control
 import pyec.calc_interface as environ_calc
 import pyec.output_interface as environ_output
 
-from mpi4py import MPI
+try:
+    from mpi4py import MPI
+    mpi_comm = MPI.COMM_WORLD
+    comm = mpi_comm.py2f()
+except Exception:
+    comm = None
 
-VERBOSE=True
+
 def printt(s):
-    if VERBOSE:
+    if VERBOSE and ionode:
         print(s)
         sys.stdout.flush()
 
-comm = MPI.COMM_WORLD
-comm = comm.py2f()
-printt(comm)
 
-fname = 'dielectric.in'
+VERBOSE = False
+ionode = mpi_comm.rank == 0
 
-qepy.qepy_pwscf(fname, comm)
+printt(f'comm:{comm}')
+
+# INPUT FILES
+pw_file = 'neutral.in'
+env_file = 'environ.in'
+
+use_environ = True
+
+# QEPY SETUP
+qepy.qepy_pwscf(pw_file, comm)
 
 embed = qepy.qepy_common.embed_base()
-embed.exttype = 0
-embed.finish = False
 
-## CONTAINER FOR ENVIRON THINGS
-nat = qepy.ions_base.get_nat()
-ntyp = qepy.ions_base.get_nsp()
-nelec = qepy.klist.get_nelec()
-atom_label = qepy.ions_base.get_array_atm().view('c')
+if use_environ:
 
-alat = qepy.cell_base.get_alat()
-at = qepy.cell_base.get_array_at()
-gcutm = qepy.gvect.get_gcutm()
-e2_in = qepy.constants.e2
+    # QEPY PARAMETERS NEEDED IN ENVIRON
+    nat = qepy.ions_base.get_nat()  # number of atoms
+    ntyp = qepy.ions_base.get_nsp()  # number of species
+    nelec = qepy.klist.get_nelec()  # number of electrons
+    atom_label = qepy.ions_base.get_array_atm().view('c')  # atom labels
+    atom_label = atom_label[:, :ntyp]  # discard placeholders*
 
-ityp = qepy.ions_base.get_array_ityp()
-zv = qepy.ions_base.get_array_zv()
-tau = qepy.ions_base.get_array_tau()
+    alat = qepy.cell_base.get_alat()  # lattice parameter
+    at = qepy.cell_base.get_array_at()  # 3 x 3 lattice in atomic units
+    gcutm = qepy.gvect.get_gcutm()  # G-vector cutoff
 
-printt(f'nat={nat}')
-printt(f'nelec={nelec}')
-printt(f'ntyp={ntyp}')
-printt(f'atom_label={atom_label[:, :ntyp]}')
-printt(f'alat={alat}')
-printt(f'at={at}')
-printt(f'gcutm={gcutm}')
-printt(f'ityp={ityp}')
-printt(f'zv={zv}')
-printt(f'tau={tau}')
+    ityp = qepy.ions_base.get_array_ityp()  # species indices
+    zv = qepy.ions_base.get_array_zv()  # ionic charges
+    tau = qepy.ions_base.get_array_tau()  # ion positions
 
-# ENVIRON INIT
-printt('io')
-environ_setup.init_io(True, 0, comm, 6)
-printt("base 1")
-environ_setup.init_base_first(nelec, nat, ntyp, atom_label[:, :ntyp], False)
-printt("base 2")
-environ_setup.init_base_second(alat, at, comm, gcutm, e2_in)
+    # PRINT PARAMETERS
+    printt(f'nat={nat}')
+    printt(f'nelec={nelec}')
+    printt(f'ntyp={ntyp}')
+    printt(f'atom_label={atom_label}')
+    printt(f'alat={alat}')
+    printt(f'at={at}')
+    printt(f'gcutm={gcutm}')
+    printt(f'ityp={ityp}')
+    printt(f'zv={zv}')
+    printt(f'tau={tau}')
+    printt('')
 
-# update functions
-printt("ions")
-environ_control.update_ions(nat, ntyp, ityp, zv[:ntyp], tau, alat)
-printt("cell")
-environ_control.update_cell(at, alat)
+    # ENVIRON INIT
+    printt('setting up io')
+    environ_setup.init_io(ionode, 0, comm, 6)
 
-nnt = environ_calc.get_nnt()
-rho = np.zeros((nnt, 1), order='F')
-rhohist = np.zeros((nnt, 1), order='F')
-dvtot = np.zeros((nnt), order='F')
-printt("qepy get rho")
-qepy.qepy_mod.qepy_get_rho(rho, True)
-printt(f'rho={np.sum(rho)}')
+    printt("reading Environ input")
+    environ_setup.read_input(env_file)
 
-printt("electrons")
-environ_control.update_electrons(rho, True)
+    printt("initializing Environ")
+    environ_setup.init_environ(comm, nelec, nat, ntyp, atom_label, ityp, zv,
+                               False, alat, at, gcutm)
 
-# calculator interface
-printt("calcpotential")
-environ_calc.calc_potential(False, dvtot, lgather=True)
+    # PRE-SCF UPDATES
+    printt("updating ions")
+    environ_control.update_ions(nat, tau, alat)
+    printt("updating cell")
+    environ_control.update_cell(at, alat)
 
-printt("scf")
-nstep = 1
-for i in range(nstep):
+    # CELL-DEPENDENT PARAMATERS
+    nnt = environ_control.get_nnt()  # total number of grid points in Environ
+    rho = np.zeros((nnt, 1), order='F')  # density register used in each step
+    dvtot = np.zeros(nnt, order='F')  # potential contribution per scf step
+
+    # GET INITIAL DENSITY
+    printt("retrieving density")
+    qepy.qepy_mod.qepy_get_rho(rho, True)
+    printt(f'rho = {np.sum(rho)}')
+
+    # UPDATE ELECTRONS
+    printt("updating electrons")
+    environ_control.update_electrons(rho, True)
+
+    # CALCULATE ENVIRONMENT CONTRIBUTION TO THE POTENTIAL
+    printt("calculating environment contribution to the potential")
+    restart = environ_control.is_restart()
+    environ_calc.calc_potential(restart, dvtot, lgather=True)
+
+# SCF CYCLE
+printt("starting scf cycle")
+embed.iterative = True
+maxsteps = 60
+
+for i in range(maxsteps):
+
     # QE SCF
-    if i == 0 :
-        initial = True
-    else :
-        initial = False
-    embed.initial = initial
+    if i > 0: embed.initial = False
+
+    printt("running qepy scf")
     embed.mix_coef = -1.0
-    qepy.qepy_electrons_scf(0, 0, embed)
+    qepy.qepy_electrons_scf(2, 0, embed)
     embed.mix_coef = 0.7
     qepy.qepy_electrons_scf(2, 0, embed)
 
-    # QEPY -> ENVIRON
-    qepy.qepy_calc_energies(embed)
-    rho[:] = 0.0
-    printt("rho gather")
-    qepy.qepy_mod.qepy_get_rho(rho, True)
+    if use_environ:
 
-    # ENVIRON SCF
-    printt("rho scatter")
-    environ_control.update_electrons(rho, True)
-    environ_control.add_mbx_charges(rho, True)
-    printt("v gather")
-    environ_calc.calc_potential(True, dvtot, lgather=True)
+        # UPDATE ENERGY
+        environ_energy = environ_calc.calc_energy()
+        printt(f'environ energy = {environ_energy}')
+        printt("passing environment energy contribution to qepy")
+        embed.extene = environ_energy
+        printt(f"corrected energy = {embed.etotal}")
 
-    # UPDATE ENERGY
-    environ_energy = environ_calc.calc_energy()
-    embed.etotal += environ_energy
+        # ENVIRON OUTPUT
+        environ_output.print_energies()  #TODO figure out one-electron term
 
-    # ENVIRON OUTPUT
+    conv_elec = qepy.control_flags.get_conv_elec()
+
+    if use_environ:
+
+        # QEPY -> ENVIRON
+        printt("retrieving density")
+        rho[:] = 0.0
+        qepy.qepy_mod.qepy_get_rho(rho, True)
+        printt(f'rho = {np.sum(rho)}')
+
+        # ENVIRON SCF
+        printt("running Environ scf")
+        printt("updating electrons")
+        environ_control.update_electrons(rho, True)
+
+        # check if Environ should compute its potential contribution
+        # (either the threshold has been met, or this is a restarted job)
+        if embed.dnorm > 0.0:
+            threshold = environ_control.get_threshold()
+            update = not conv_elec or embed.dnorm < threshold
+
+        printt("calculating environment contribution to the potential")
+        environ_calc.calc_potential(update, dvtot, lgather=True)
+        printt(f'dvtot = {np.sum(dvtot)}')
+
+        # ENVIRON -> QEPY
+        printt("passing environment potential to qepy")
+        qepy.qepy_mod.qepy_set_extpot(embed, dvtot)
+
+    if conv_elec: break  # TODO can this move up?
+
+if use_environ:
+    printt("potential shift")
     environ_output.print_potential_shift()
-    environ_output.print_energies()
 
-    # ENVIRON -> QEPY
-    printt("v scatter")
-    qepy.qepy_mod.qepy_set_extpot(embed, dvtot, True)
+# FORCES
+if use_environ:
+    printt("calculating environment forces")
+    environ_force = np.zeros((3, nat), dtype=float, order='F')
+    environ_calc.calc_force(environ_force)
+    printt(environ_force.T)
+    printt("passing environment forces to qepy")
+    qepy.qepy_mod.qepy_set_extforces(embed, environ_force)
 
-    printt(f"corrected energy = {embed.etotal}")
-
-
-qepy.qepy_calc_energies(embed)
-etotal = embed.etotal
-
-qepy.qepy_forces(0)
+printt("calculating qepy forces")
+qepy.qepy_forces(embed=embed)
 forces = qepy.force_mod.get_array_force().T
 
-force_environ = np.zeros((3, nat), dtype=float, order='F')
-environ_calc.calc_force(force_environ)
-printt(force_environ.T)
+printt(forces)
 
-environ_setup.environ_clean(True)
+# CLEAN ALLOCATIONS AND EXIT
+if use_environ: environ_setup.clean_environ()
 
 qepy.punch('all')
-qepy.qepy_stop_run(0, what = 'no') 
-
+qepy.qepy_stop_run(0, what='no')

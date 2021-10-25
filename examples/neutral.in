@@ -4,7 +4,7 @@
    restart_mode = 'from_scratch'
    tprnfor = .TRUE.
    pseudo_dir = 'pseudo'
-   outdir = 'results'
+   outdir = 'results_neutral'
    !
  /
  &SYSTEM

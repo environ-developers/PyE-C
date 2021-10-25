@@ -4,65 +4,66 @@ import numpy as np
 import qepy
 from edftpy.engine.engine_environ import EngineEnviron
 
-from mpi4py import MPI
+try:
+    from mpi4py import MPI
+    mpi_comm = MPI.COMM_WORLD
+    comm = mpi_comm.py2f()
+except Exception:
+    comm = None
 
-VERBOSE=True
+
 def printt(s):
-    if VERBOSE:
+    if VERBOSE and ionode:
         print(s)
         sys.stdout.flush()
 
-comm = MPI.COMM_WORLD
-#comm = comm.py2f()
+
+VERBOSE = False
+ionode = mpi_comm.rank == 0
+
 printt(f'comm:{comm}')
 
-fname = 'dielectric.in'
+# INPUT FILES
+pw_file = 'neutral.in'
+env_file = 'environ.in'
 
-qepy.qepy_pwscf(fname, comm.py2f())
+use_environ = True
+
+qepy.qepy_pwscf(pw_file, comm)
 
 embed = qepy.qepy_common.embed_base()
-embed.exttype = 0
-embed.finish = False
 
-## CONTAINER FOR ENVIRON THINGS
-nat = qepy.ions_base.get_nat()
-ntyp = qepy.ions_base.get_nsp()
-nelec = qepy.klist.get_nelec()
-atom_label = qepy.ions_base.get_array_atm().view('c')
+if use_environ:
 
-alat = qepy.cell_base.get_alat()
-at = qepy.cell_base.get_array_at()
-me = 0
-root = 0
-gcutm = qepy.gvect.get_gcutm()
+    # QEPY PARAMETERS NEEDED IN ENVIRON
+    nat = qepy.ions_base.get_nat()  # number of atoms
+    ntyp = qepy.ions_base.get_nsp()  # number of species
+    nelec = qepy.klist.get_nelec()  # number of electrons
+    atom_label = qepy.ions_base.get_array_atm().view('c')  # atom labels
+    atom_label = atom_label[:, :ntyp]  # discard placeholders
 
-ityp = qepy.ions_base.get_array_ityp()
-zv = qepy.ions_base.get_array_zv()
-tau = qepy.ions_base.get_array_tau()
+    alat = qepy.cell_base.get_alat()  # lattice parameter
+    at = qepy.cell_base.get_array_at()  # 3 x 3 lattice in atomic units
+    gcutm = qepy.gvect.get_gcutm()  # G-vector cutoff
 
-vltot = qepy.scf.get_array_vltot()
-nnr = vltot.size
+    ityp = qepy.ions_base.get_array_ityp()  # species indices
+    zv = qepy.ions_base.get_array_zv()  # ionic charges
+    tau = qepy.ions_base.get_array_tau()  # ion positions
 
-rho = np.zeros((nnr, 1), order='F')
-rhohist = np.zeros((nnr, 1), order='F')
-dvtot = np.zeros((nnr), order='F')
-qepy.qepy_mod.qepy_get_rho(rho, False)
+    # PRINT PARAMETERS
+    printt(f'nat={nat}')
+    printt(f'nelec={nelec}')
+    printt(f'ntyp={ntyp}')
+    printt(f'atom_label={atom_label}')
+    printt(f'alat={alat}')
+    printt(f'at={at}')
+    printt(f'gcutm={gcutm}')
+    printt(f'ityp={ityp}')
+    printt(f'zv={zv}')
+    printt(f'tau={tau}')
+    printt('')
 
-printt(f'nat={nat}')
-printt(f'nelec={nelec}')
-printt(f'ntyp={ntyp}')
-printt(f'atom_label={atom_label[:, :ntyp]}')
-printt(f'alat={alat}')
-printt(f'at={at}')
-printt(f'gcutm={gcutm}')
-printt(f'ityp={ityp}')
-printt(f'zv={zv}')
-printt(f'tau={tau}')
-printt(f'nnr={nnr}')
-printt(f'vltot={vltot.shape}')
-printt(f'rho={np.sum(rho)}')
-
-inputs = {
+    inputs = {
         'nat': nat,
         'ntyp': ntyp,
         'nelec': nelec,
@@ -73,59 +74,99 @@ inputs = {
         'gcutm': gcutm,
         'zv': zv,
         'tau': tau,
-        'vltot': vltot,
-        'nnr': nnr,
-        'rho': rho,
-        'do_comp_mt': False,
-}
+        'use_internal_pbc_corr': False,
+    }
 
-# ENVIRON INIT
-printt('init')
-environ = EngineEnviron()
-environ.initial(comm=comm, **inputs)
+    # ENVIRON INIT
+    printt("initializing Environ")
+    environ = EngineEnviron()
+    environ.initial(comm=mpi_comm, **inputs)
 
-nstep = 3
-for i in range(nstep):
+    # GET INITIAL DENSITY
+    printt("retrieving density")
+    nnt = environ.get_nnt()  # total number of grid points in Environ
+    rho = np.zeros((nnt, 1), order='F')  # density register used in each step
+    qepy.qepy_mod.qepy_get_rho(rho, True)
+    printt(f'rho={np.sum(rho)}')
+
+    # PRE-SCF UPDATES
+    environ.pre_scf(rho)
+
+# SCF CYCLE
+printt("starting scf cycle")
+embed.iterative = True
+maxsteps = 60
+
+for i in range(maxsteps):
+
     # QE SCF
-    printt('scf')
-    if i == 0 :
-        initial = True
-    else :
-        initial = False
-    embed.initial = initial
+    if i > 0: embed.initial = False
+
+    printt("running qepy scf")
     embed.mix_coef = -1.0
     qepy.qepy_electrons_scf(0, 0, embed)
     embed.mix_coef = 0.7
     qepy.qepy_electrons_scf(2, 0, embed)
 
-    # QEPY -> ENVIRON
-    qepy.qepy_calc_energies(embed)
-    rho[:] = 0.0
-    qepy.qepy_mod.qepy_get_rho(rho, False)
+    if use_environ:
 
-    # ENVIRON SCF
-    environ.scf(rho)
+        # UPDATE ENERGY
+        environ_energy = environ.calc_energy()
+        printt(f'environ energy = {environ_energy}')
+        printt("passing environment energy contribution to qepy")
+        embed.extene = environ_energy
+        printt(f"corrected energy = {embed.etotal}")
 
-    # UPDATE ENERGY
-    environ_energy = environ.calc_energy()
-    embed.etotal += environ_energy * 2.0
+        # ENVIRON OUTPUT
+        environ.print_energies()  #TODO figure out one-electron term
 
-    # ENVIRON -> QEPY
-    qepy.qepy_mod.qepy_set_extpot(embed, environ.get_potential())
+    conv_elec = qepy.control_flags.get_conv_elec()
 
-    printt(f"corrected energy = {embed.etotal}")
+    if use_environ:
 
+        # QEPY -> ENVIRON
+        printt("retrieving density")
+        rho[:] = 0.0
+        qepy.qepy_mod.qepy_get_rho(rho, True)
+        printt(f'rho = {np.sum(rho)}')
 
-qepy.qepy_calc_energies(embed)
-etotal = embed.etotal
+        # ENVIRON SCF
+        printt("running Environ scf")
+        threshold = environ.get_threshold()
+        update = not conv_elec or embed.dnorm < threshold
+        environ.scf(rho, update)
 
-qepy.qepy_forces(0)
+        # ENVIRON -> QEPY
+        printt("passing environment potential to qepy")
+        qepy.qepy_mod.qepy_set_extpot(embed, environ.get_potential())
+
+    if conv_elec: break  # TODO can this move up?
+
+if use_environ:
+    printt("potential shift")
+    environ.print_potential_shift()
+
+# FORCES
+if use_environ:
+    printt("calculating environment forces")
+    environ_force = environ.get_force()
+    printt(environ_force)
+
+printt("calculating qepy forces")
+qepy.qepy_forces(embed=embed)
 forces = qepy.force_mod.get_array_force().T
-
-forces += environ.get_force() * 2.0
 printt(forces)
 
-environ.stop_run()
+# SUM UP FORCES
+forces += environ_force
+
+# NORMALIZE FORCES TO REMOVE FORCE ON CELL
+# TODO remove the average of the forces from the force
+
+printt(forces)
+
+# CLEAN ALLOCATIONS AND EXIT
+if use_environ: environ.stop_run()
 
 qepy.punch('all')
-qepy.qepy_stop_run(0, what = 'no')
+qepy.qepy_stop_run(0, what='no')
