@@ -519,7 +519,7 @@ CONTAINS
     SUBROUTINE print_energies()
         !--------------------------------------------------------------------------------
         !
-        CALL env%print_energies('PW')
+        CALL env%print_energies('PW', .FALSE.)
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE print_energies
