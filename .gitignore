@@ -1,6 +1,13 @@
-.python-version
-.vscode/
-Environ/
-build/
+# user files
+.vscode
+Environ
+
+# example files
+results_*
+
+# build files
+dist
+build
 .eggs
 *.egg-info
+.python-version
