@@ -60,7 +60,7 @@ KIND_MAP = kind_map
 
 # List all source files required for the project
 
-LIBSRC_SOURCES = setup_interface calc_interface control_interface output_interface
+LIBSRC_SOURCES = environ_interface
 
 # File names
 LIBSRC_FILES = $(addsuffix .f90, ${LIBSRC_SOURCES})
@@ -70,7 +70,7 @@ LIBSRC_OBJECTS = $(addsuffix .o, ${LIBSRC_SOURCES})
 
 ## List all source files that require a Python interface
 # names without suffix, f90 sources
-LIBSRC_WRAP_SOURCES = setup_interface calc_interface control_interface output_interface
+LIBSRC_WRAP_SOURCES = environ_interface
 
 # file names
 LIBSRC_WRAP_FILES = $(addsuffix .f90, ${LIBSRC_WRAP_SOURCES})
