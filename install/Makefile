@@ -28,7 +28,7 @@
 #
 #----------------------------------------------------------------------------------------
 
-ENVDIR := $(or ${envdir}, ../../../)
+ENVDIR := $(or ${envdir}, ../../Environ)
 include ${ENVDIR}/make.inc
 
 MODFLAGS = $(BASEMOD_FLAGS)
