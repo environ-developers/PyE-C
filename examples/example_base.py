@@ -2,10 +2,7 @@ import sys
 
 import numpy as np
 import qepy
-import pyec.setup_interface as environ_setup
-import pyec.control_interface as environ_control
-import pyec.calc_interface as environ_calc
-import pyec.output_interface as environ_output
+import pyec.environ_interface as environ
 
 try:
     from mpi4py import MPI
@@ -16,6 +13,7 @@ except Exception:
 
 
 def printt(s):
+    """Parallel-safe printer."""
     if VERBOSE and ionode:
         print(s)
         sys.stdout.flush()
@@ -69,23 +67,24 @@ if use_environ:
 
     # ENVIRON INIT
     printt('setting up io')
-    environ_setup.init_io(ionode, 0, comm, 6)
+    environ.init_io(ionode, 0, comm, 6)
 
     printt("reading Environ input")
-    environ_setup.read_input(env_file)
+    environ.read_input(env_file)
 
     printt("initializing Environ")
-    environ_setup.init_environ(comm, nelec, nat, ntyp, atom_label, ityp, zv,
-                               False, alat, at, gcutm)
+    environ.init_environ(comm, nelec, nat, ntyp, atom_label, ityp, zv, False,
+                         alat, at, gcutm)
 
     # PRE-SCF UPDATES
     printt("updating ions")
-    environ_control.update_ions(nat, tau, alat)
+    environ.update_ions(nat, tau, alat)
+
     printt("updating cell")
-    environ_control.update_cell(at, alat)
+    environ.update_cell(at, alat)
 
     # CELL-DEPENDENT PARAMATERS
-    nnt = environ_control.get_nnt()  # total number of grid points in Environ
+    nnt = environ.get_nnt()  # total number of grid points in Environ
     rho = np.zeros((nnt, 1), order='F')  # density register used in each step
     dvtot = np.zeros(nnt, order='F')  # potential contribution per scf step
 
@@ -96,12 +95,7 @@ if use_environ:
 
     # UPDATE ELECTRONS
     printt("updating electrons")
-    environ_control.update_electrons(rho, True)
-
-    # CALCULATE ENVIRONMENT CONTRIBUTION TO THE POTENTIAL
-    printt("calculating environment contribution to the potential")
-    restart = environ_control.is_restart()
-    environ_calc.calc_potential(restart, dvtot, lgather=True)
+    environ.update_electrons(rho, True)
 
 # SCF CYCLE
 printt("starting scf cycle")
@@ -122,14 +116,14 @@ for i in range(maxsteps):
     if use_environ:
 
         # UPDATE ENERGY
-        environ_energy = environ_calc.calc_energy()
+        environ_energy = environ.calc_energy()
         printt(f'environ energy = {environ_energy}')
         printt("passing environment energy contribution to qepy")
         embed.extene = environ_energy
         printt(f"corrected energy = {embed.etotal}")
 
         # ENVIRON OUTPUT
-        environ_output.print_energies()  #TODO figure out one-electron term
+        environ.print_energies()
 
     conv_elec = qepy.control_flags.get_conv_elec()
 
@@ -144,34 +138,35 @@ for i in range(maxsteps):
         # ENVIRON SCF
         printt("running Environ scf")
         printt("updating electrons")
-        environ_control.update_electrons(rho, True)
+        environ.update_electrons(rho, True)
 
         # check if Environ should compute its potential contribution
         # (either the threshold has been met, or this is a restarted job)
         if embed.dnorm > 0.0:
-            threshold = environ_control.get_threshold()
-            update = not conv_elec or embed.dnorm < threshold
+            threshold = environ.get_threshold()
+            update = not conv_elec and embed.dnorm < threshold
 
         printt("calculating environment contribution to the potential")
-        environ_calc.calc_potential(update, dvtot, lgather=True)
+        environ.calc_potential(update, dvtot, lgather=True)
         printt(f'dvtot = {np.sum(dvtot)}')
 
         # ENVIRON -> QEPY
         printt("passing environment potential to qepy")
         qepy.qepy_mod.qepy_set_extpot(embed, dvtot)
 
-    if conv_elec: break  # TODO can this move up?
+    if conv_elec: break
 
 if use_environ:
     printt("potential shift")
-    environ_output.print_potential_shift()
+    environ.print_potential_shift()
 
 # FORCES
 if use_environ:
     printt("calculating environment forces")
     environ_force = np.zeros((3, nat), dtype=float, order='F')
-    environ_calc.calc_force(environ_force)
+    environ.calc_force(environ_force)
     printt(environ_force.T)
+    
     printt("passing environment forces to qepy")
     qepy.qepy_mod.qepy_set_extforces(embed, environ_force)
 
@@ -182,7 +177,7 @@ forces = qepy.force_mod.get_array_force().T
 printt(forces)
 
 # CLEAN ALLOCATIONS AND EXIT
-if use_environ: environ_setup.clean_environ()
+if use_environ: environ.clean_environ()
 
 qepy.punch('all')
 qepy.qepy_stop_run(0, what='no')
