@@ -8,19 +8,19 @@ try:
     from mpi4py import MPI
     mpi_comm = MPI.COMM_WORLD
     comm = mpi_comm.py2f()
+    is_ionode = mpi_comm.rank == 0
 except Exception:
     comm = None
 
 
 def printt(s):
     """Parallel-safe printer."""
-    if VERBOSE and ionode:
+    if is_ionode and verbose:
         print(s)
         sys.stdout.flush()
 
 
-VERBOSE = False
-ionode = mpi_comm.rank == 0
+verbose = False
 
 printt(f'comm:{comm}')
 
@@ -44,13 +44,18 @@ if use_environ:
     atom_label = qepy.ions_base.get_array_atm().view('c')  # atom labels
     atom_label = atom_label[:, :ntyp]  # discard placeholders*
 
-    alat = qepy.cell_base.get_alat()  # lattice parameter
     at = qepy.cell_base.get_array_at()  # 3 x 3 lattice in atomic units
     gcutm = qepy.gvect.get_gcutm()  # G-vector cutoff
 
     ityp = qepy.ions_base.get_array_ityp()  # species indices
     zv = qepy.ions_base.get_array_zv()  # ionic charges
     tau = qepy.ions_base.get_array_tau()  # ion positions
+
+    # CONVERT TO ATOMIC UNITS
+    alat = qepy.cell_base.get_alat()  # lattice parameter
+    at = at * alat
+    tau = tau * alat
+    gcutm = gcutm / alat**2
 
     # PRINT PARAMETERS
     printt(f'nat={nat}')
@@ -67,21 +72,21 @@ if use_environ:
 
     # ENVIRON INIT
     printt('setting up io')
-    environ.init_io(ionode, 0, comm, 6)
+    environ.init_io(is_ionode, 0, comm, 6)
 
     printt("reading Environ input")
     environ.read_input(env_file)
 
     printt("initializing Environ")
     environ.init_environ(comm, nelec, nat, ntyp, atom_label, ityp, zv, False,
-                         alat, at, gcutm)
+                         at, gcutm)
 
     # PRE-SCF UPDATES
     printt("updating ions")
-    environ.update_ions(nat, tau, alat)
+    environ.update_ions(nat, tau)
 
     printt("updating cell")
-    environ.update_cell(at, alat)
+    environ.update_cell(at)
 
     # CELL-DEPENDENT PARAMATERS
     nnt = environ.get_nnt()  # total number of grid points in Environ
@@ -166,7 +171,7 @@ if use_environ:
     environ_force = np.zeros((3, nat), dtype=float, order='F')
     environ.calc_force(environ_force)
     printt(environ_force.T)
-    
+
     printt("passing environment forces to qepy")
     qepy.qepy_mod.qepy_set_extforces(embed, environ_force)
 

@@ -119,7 +119,7 @@ CONTAINS
     !!
     !------------------------------------------------------------------------------------
     SUBROUTINE init_environ(comm, nelec, nat, ntyp, atom_label, ityp, zv, &
-                            use_internal_pbc_corr, alat, at, gcutm)
+                            use_internal_pbc_corr, at, gcutm)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
@@ -130,12 +130,8 @@ CONTAINS
         INTEGER, INTENT(IN) :: ityp(nat)
         REAL(DP), INTENT(IN) :: zv(ntyp)
         LOGICAL, INTENT(IN) :: use_internal_pbc_corr
-        REAL(DP), INTENT(IN) :: alat
         REAL(DP), INTENT(IN) :: at(3, 3)
         REAL(DP), INTENT(IN) :: gcutm
-        !
-        REAL(DP), ALLOCATABLE :: at_scaled(:, :)
-        REAL(DP) :: gcutm_scaled
         !
         CHARACTER(LEN=80) :: sub_name = 'init_environ'
         !
@@ -145,15 +141,9 @@ CONTAINS
         !
         CALL env_allocate_mp_buffers()
         !
-        ALLOCATE (at_scaled(3, 3))
-        at_scaled = at * alat
-        gcutm_scaled = gcutm / alat**2
+        CALL setup%init_cell(gcutm, comm, at)
         !
-        CALL setup%init_cell(gcutm_scaled, comm, at_scaled)
-        !
-        DEALLOCATE (at_scaled)
-        !
-        CALL setup%init_cores(gcutm_scaled, use_internal_pbc_corr)
+        CALL setup%init_cores(gcutm, use_internal_pbc_corr)
         !
         CALL env%init(setup, nelec, nat, ntyp, atom_label, ityp, zv)
         !
@@ -182,21 +172,16 @@ CONTAINS
     !>
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE update_cell(at, alat)
+    SUBROUTINE update_cell(at)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
         !
-        REAL(DP), INTENT(IN) :: at(3, 3), alat
-        !
-        REAL(DP), ALLOCATABLE :: at_scaled(:, :)
+        REAL(DP), INTENT(IN) :: at(3, 3)
         !
         !--------------------------------------------------------------------------------
         !
-        ALLOCATE (at_scaled(3, 3))
-        at_scaled = at * alat
-        !
-        CALL setup%update_cell(at_scaled)
+        CALL setup%update_cell(at)
         !
         CALL env%update_cell_dependent_quantities()
         !
@@ -208,22 +193,17 @@ CONTAINS
     !>
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE update_ions(nat, tau, alat)
+    SUBROUTINE update_ions(nat, tau)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
         !
         INTEGER, INTENT(IN) :: nat
-        REAL(DP), INTENT(IN) :: tau(3, nat), alat
-        !
-        REAL(DP), ALLOCATABLE :: tau_scaled(:, :)
+        REAL(DP), INTENT(IN) :: tau(3, nat)
         !
         !--------------------------------------------------------------------------------
         !
-        ALLOCATE (tau_scaled(3, nat))
-        tau_scaled = tau * alat
-        !
-        CALL env%update_ions(nat, tau_scaled)
+        CALL env%update_ions(nat, tau)
         !
         !--------------------------------------------------------------------------------
     END SUBROUTINE update_ions
