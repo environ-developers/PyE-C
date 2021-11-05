@@ -11,3 +11,8 @@ build
 .eggs
 *.egg-info
 .python-version
+
+# test files
+environ.debug
+CRASH
+*.out
