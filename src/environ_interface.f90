@@ -75,7 +75,7 @@ CONTAINS
     !>
     !!
     !------------------------------------------------------------------------------------
-    SUBROUTINE init_io(ionode, ionode_id, comm, program_unit)
+    SUBROUTINE init_io(ionode, ionode_id, comm, program_unit, lstdout)
         !--------------------------------------------------------------------------------
         !
         IMPLICIT NONE
@@ -84,10 +84,11 @@ CONTAINS
         INTEGER, INTENT(IN) :: ionode_id
         INTEGER, INTENT(IN) :: comm
         INTEGER, INTENT(IN) :: program_unit
+        LOGICAL, INTENT(IN) :: lstdout
         !
         !--------------------------------------------------------------------------------
         !
-        CALL io%init(ionode, ionode_id, comm, program_unit, ionode)
+        CALL io%init(ionode, ionode_id, comm, program_unit, lstdout)
         !
         io%debug_unit = io%find_free_unit()
         !

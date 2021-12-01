@@ -41,21 +41,28 @@ ntyp = 1
 ityp = (1, )
 zv = (-1.0, )
 atom_labels = format_labels(ntyp, ('H  ', ))
-gcutm = 300 / np.pi**2
+
+gcutrho = 300
+gcutm = gcutrho / np.pi**2
+
 mt_corr = True
 
 at = np.zeros((3, 3), order='F')
 tau = np.zeros((3, nat), order='F')
-alat = 10.0
+alat = 15.0
 
 for i in range(3):
-    at[i, i] = 1.0 * alat
+    at[i, i] = 1.0
+
+at *= alat
 
 for i in range(nat):
     for j in range(3):
-        tau[j, i] = 0.5 * alat
+        tau[j, i] = 0.5
 
-environ.init_io(is_ionode, ionode, comm, 6)
+tau *= alat
+
+environ.init_io(is_ionode, ionode, comm, 6, False)
 environ.read_input()
 
 pprint("Initializing Environ...")
